@@ -7,6 +7,7 @@
 | banking77 (mteb parquet mirror) | https://huggingface.co/datasets/mteb/banking77 | CC-BY-4.0 | the raw / L0 table (`banking20`, `bench/results_v01/`) and the README GIF |
 | 20 Newsgroups (SetFit mirror) | https://huggingface.co/datasets/SetFit/20_newsgroups | see dataset card | `newsgroups` in `bench/results_v01/` and `bench/results_layout/` |
 | deepset/prompt-injections | https://huggingface.co/datasets/deepset/prompt-injections | Apache-2.0 | `injection` in `bench/results_v01/` |
+| Decision Index kit | https://github.com/apolinario/decision-index (at `9eb2dbe`) | MIT | `examples/decision_index/` (the engine's base class and the run/score CLI), `bench/results_decision_index/`; installed separately, never vendored |
 | MASSIVE intents (mteb mirror) | https://huggingface.co/datasets/mteb/amazon_massive_scenario | CC-BY-4.0 | `massive_route` in `bench/results_layout/` (18-way utterance routing) |
 
 Datasets are downloaded at run time, never vendored. The Tacit models are derived from Qwen models released under

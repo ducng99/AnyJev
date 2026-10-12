@@ -187,7 +187,8 @@ L0 档的 `Decider`，用未改动的 [`google/gemma-4-31B-it`](https://huggingf
 | **60.22** | 59.79 | 59.13 | 52.98 | 98 / 260 / 1,080 ms |
 
 <sub>两个私有部分和延迟由排行榜维护者测量（单进程，一张 RTX PRO 6000）。用 `vllm serve --quantization fp8`（vLLM 0.29.0）
-服务，anyjev 0.3.0。引擎和运行设置：[anyjev-l0-gemma](https://github.com/MorrisZJ/anyjev-l0-gemma)；模型卡：
+服务，anyjev 0.3.0。引擎和运行设置：[examples/decision_index](https://github.com/nokia-applied-research/AnyJev/tree/main/examples/decision_index)（提交时用的是
+[anyjev-l0-gemma](https://github.com/MorrisZJ/anyjev-l0-gemma)）；模型卡：
 [AnyJev-L0-Gemma-4-31B](https://huggingface.co/morriszjm/AnyJev-L0-Gemma-4-31B) ·
 `bench/results_decision_index/2026-10-12/anyjev-l0-gemma-4-31b.json`</sub>
 

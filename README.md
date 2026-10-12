@@ -200,7 +200,8 @@ no training, no labels, two rotations per decision. On the [Decision Index 0.3](
 
 <sub>The board's maintainers ran the two private parts and measured the latency (single process, one RTX PRO 6000).
 Served by `vllm serve --quantization fp8` (vLLM 0.29.0) with anyjev 0.3.0. Engine and run settings:
-[anyjev-l0-gemma](https://github.com/MorrisZJ/anyjev-l0-gemma); model card:
+[examples/decision_index](https://github.com/nokia-applied-research/AnyJev/tree/main/examples/decision_index) (submitted as
+[anyjev-l0-gemma](https://github.com/MorrisZJ/anyjev-l0-gemma)); model card:
 [AnyJev-L0-Gemma-4-31B](https://huggingface.co/morriszjm/AnyJev-L0-Gemma-4-31B) ·
 `bench/results_decision_index/2026-10-12/anyjev-l0-gemma-4-31b.json`</sub>
 

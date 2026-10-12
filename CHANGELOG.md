@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **New: `examples/decision_index/`**, the engine behind the Decision Index board entry (L0 on
+  google/gemma-4-31B-it): `anyjev_engine.py`, `serve.sh`, `run.sh` and `requirements.txt`, unchanged from the
+  submitted run (github.com/MorrisZJ/anyjev-l0-gemma at 50476e9, which the board links to and which stays as it
+  is). It imports the Decision Index kit, so it is an example outside the package and CI. The kit is listed in
+  `THIRD_PARTY.md` (MIT).
 - **README: the training-free path on the Decision Index 0.3 board.** The `Decider` at L0 (two rotations,
   no training, no labels) on the unchanged google/gemma-4-31B-it, served in FP8 by vLLM 0.29.0: Full score 60.22,
   5th of 149 entries on 2026-10-12, with the private parts and the latency measured by the board's maintainers.
