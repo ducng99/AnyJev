@@ -244,14 +244,4 @@ L0 档的 `Decider`，用未改动的 [`google/gemma-4-31B-it`](https://huggingf
 }
 ```
 
-软件：
-```bibtex
-@software{anyjev2026,
-  title  = {AnyJev: Turn any LLM into a Jev-style decision model},
-  author = {Zhang, Jiamu and Yang, Tianze and Shi, Yucheng and Wu, Liang},
-  year   = {2026},
-  url    = {https://github.com/nokia-applied-research/AnyJev}
-}
-```
-
 Apache-2.0，见 [LICENSE](https://github.com/nokia-applied-research/AnyJev/blob/main/LICENSE)。Tacit 模型沿用其基座模型的 Apache-2.0 许可。数据集各有自己的许可，见 [THIRD_PARTY.md](https://github.com/nokia-applied-research/AnyJev/blob/main/THIRD_PARTY.md)。

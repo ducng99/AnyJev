@@ -258,14 +258,4 @@ Technical Report:
 }
 ```
 
-Software:
-```bibtex
-@software{anyjev2026,
-  title  = {AnyJev: Turn any LLM into a Jev-style decision model},
-  author = {Zhang, Jiamu and Yang, Tianze and Shi, Yucheng and Wu, Liang},
-  year   = {2026},
-  url    = {https://github.com/nokia-applied-research/AnyJev}
-}
-```
-
 Apache-2.0, see [LICENSE](https://github.com/nokia-applied-research/AnyJev/blob/main/LICENSE). The Tacit models carry their base models' Apache-2.0 license. Datasets keep their own licenses, see [THIRD_PARTY.md](https://github.com/nokia-applied-research/AnyJev/blob/main/THIRD_PARTY.md).
