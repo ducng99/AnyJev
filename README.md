@@ -8,8 +8,9 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](https://github.com/nokia-applied-research/AnyJev/blob/main/LICENSE)
 [![Technical Report](https://img.shields.io/badge/Technical%20Report-PDF-b31b1b?logo=adobeacrobatreader&logoColor=white)](https://arxiv.org/pdf/2610.00831)
 [![Models](https://img.shields.io/badge/%F0%9F%A4%97%20Tacit-models-yellow)](https://huggingface.co/collections/morriszjm/tacit-6ac41d0b50af9e5417c5c234)
+[![Decision Index](https://img.shields.io/badge/Decision%20Index%200.3-60.22-8b5cf6)](https://huggingface.co/spaces/multimodalart/jev-decision-index)
 
-**English** · [简体中文](https://github.com/nokia-applied-research/AnyJev/blob/main/README.zh-CN.md) · [⚡ Serve it](#-serve-it) · [📊 Results](#-tacit-results) · [🧭 Roadmap](#-roadmap) · [📖 Levels](https://github.com/nokia-applied-research/AnyJev/blob/main/docs/levels.md)
+**English** · [简体中文](https://github.com/nokia-applied-research/AnyJev/blob/main/README.zh-CN.md) · [⚡ Serve it](#-serve-it) · [📊 Results](#-tacit-results) · [🏆 Leaderboard](#-training-free-on-the-decision-index) · [🧭 Roadmap](#-roadmap) · [📖 Levels](https://github.com/nokia-applied-research/AnyJev/blob/main/docs/levels.md)
 
 </div>
 
@@ -35,6 +36,11 @@
 > the model's own reasoning. They run on transformers, in-process vLLM or a stock `vllm serve`.
 > `pip install "anyjev[hf]"`, then `Tacit.from_pretrained("morriszjm/Tacit-9B")`.
 > [Start here ↓](#-serve-it)
+
+> [!NOTE]
+> **🏆 No training, on a public leaderboard.** The training-free `Decider` (L0, two rotations) on the
+> unchanged Gemma-4-31B has a Full score of **60.22** on the [Decision Index 0.3](https://huggingface.co/spaces/multimodalart/jev-decision-index),
+> 5th of 149 entries on 2026-10-12. [Details ↓](#-training-free-on-the-decision-index)
 
 ## ⚡ Serve it
 
@@ -180,6 +186,26 @@ reasoning in small print. Served by `vllm serve` (vLLM 0.17.1), run with `script
 On average, escalation adds 567 (JevBench) and 458 (bev-decision) generated tokens per decision for Tacit-9B,
 and 305 and 187 for Tacit-4B. Results with escalation for Tacit-8B, Tacit-2B and Tacit-1.7B come next.
 
+## 🏆 Training-free on the Decision Index
+
+The `Decider` at L0 on the unchanged [`google/gemma-4-31B-it`](https://huggingface.co/google/gemma-4-31B-it):
+no training, no labels, two rotations per decision. On the [Decision Index 0.3](https://huggingface.co/spaces/multimodalart/jev-decision-index) board it is
+5th of 149 entries by Full score (2026-10-12).
+
+<div align="center">
+
+| Full score | public <sub>20%</sub> | same skills, private <sub>50%</sub> | new domains, private <sub>30%</sub> | latency median / mean / p95 |
+|:--:|:--:|:--:|:--:|:--:|
+| **60.22** | 59.79 | 59.13 | 52.98 | 98 / 260 / 1,080 ms |
+
+<sub>The board's maintainers ran the two private parts and measured the latency (single process, one RTX PRO 6000).
+Served by `vllm serve --quantization fp8` (vLLM 0.29.0) with anyjev 0.3.0. Engine and run settings:
+[anyjev-l0-gemma](https://github.com/MorrisZJ/anyjev-l0-gemma); model card:
+[AnyJev-L0-Gemma-4-31B](https://huggingface.co/morriszjm/AnyJev-L0-Gemma-4-31B) ·
+`bench/results_decision_index/2026-10-12/anyjev-l0-gemma-4-31b.json`</sub>
+
+</div>
+
 ## 🧠 How it works
 
 <p align="center">
@@ -205,6 +231,7 @@ Every Tacit decision carries its `route`.
 - [x] The rotation budget: L0 at about 7 of 18 rotations, with a stopping threshold certified without labels
 - [x] **Tacit-1.7B, 2B, 4B, 8B and 9B** on Hugging Face; `Tacit` in the library on transformers, vLLM and `vllm serve`, with capped escalation to reasoning and an HTTP gateway
 - [x] The evaluation harness (`scripts/eval_tacit.py`); results with escalation for Tacit-9B and Tacit-4B
+- [x] The training-free path on the public Decision Index 0.3 board ([L0 on Gemma-4-31B](#-training-free-on-the-decision-index))
 - [ ] 🚧 Results with escalation for Tacit-8B, Tacit-2B and Tacit-1.7B
 - [ ] 🚧 Label-free early exit: read a decision from part of the model's depth, choosing the depth by agreement with the full model
 - [ ] **Agent-loop evaluation**: the same decisions inside a real agent

@@ -1,0 +1,78 @@
+{
+ "what": "AnyJev's training-free path (Decider, level L0) on the unchanged google/gemma-4-31B-it, on the Decision Index 0.3 board",
+ "model": "google/gemma-4-31B-it",
+ "weights": "unchanged; FP8 by vLLM's dynamic quantization at load (--quantization fp8)",
+ "readout": {
+  "anyjev": "0.3.0",
+  "level": "L0",
+  "rotations": 2,
+  "rotations_over_26_options": 2,
+  "labels": "letters for up to 26 options, letter + digit above (p = p(letter) * p(digit | letter))",
+  "yes_no": "shown with their criteria",
+  "labels_used": 0,
+  "training": "none"
+ },
+ "engine_code": "https://github.com/MorrisZJ/anyjev-l0-gemma/tree/50476e9",
+ "public_run": {
+  "kit": "https://github.com/apolinario/decision-index/tree/9eb2dbe2a358004c8782c66e40a83ac07b953fec",
+  "edition": "0.3",
+  "generated_utc": "2026-10-09T03:02:15+00:00",
+  "requests": 140178,
+  "complete": true,
+  "counts": {
+   "ok": 140178
+  },
+  "public_index": 59.79,
+  "raw_index": 69.37,
+  "area_skill": {
+   "knowledge": 0.4782,
+   "language": 0.6167,
+   "retrieval": 0.6351,
+   "tools": 0.7643,
+   "arts": 0.4803
+  },
+  "server": "vLLM 0.29.0, torch 2.13.0+cu129, --quantization fp8, --logprobs-mode processed_logprobs, prefix caching on, max-model-len 131072",
+  "hardware": "NVIDIA H100 NVL (94 GB); the suite was split over identical servers (tensor parallel 1 and 2)",
+  "engine_options": {
+   "model": "google/gemma-4-31B-it",
+   "level": "L0",
+   "max_rotations": 2,
+   "big_rotations": 2,
+   "noul_meanings": 1
+  },
+  "results": "https://huggingface.co/datasets/morriszjm/decision-index-results/tree/7f4ce4f/runs/anyjev-l0-gemma-4-31b"
+ },
+ "board": {
+  "source": "https://huggingface.co/spaces/multimodalart/jev-decision-index (data/v03.json, data/index.json) at a952aedf3779aa6eca2353c46e07337655a917ef",
+  "board_label": "Decision Index 0.3.2",
+  "generated_utc": "2026-10-12T13:25:35Z",
+  "name": "AnyJev L0 · Gemma-4-31B",
+  "pr": "https://github.com/apolinario/decision-index/pull/109",
+  "full_score": 60.22,
+  "public": 59.79,
+  "same_skills_private": 59.13,
+  "new_domains_private": 52.98,
+  "weights": {
+   "public": 0.2,
+   "same_skills": 0.5,
+   "new_domains": 0.3
+  },
+  "rank_by_full_score": 5,
+  "entries": 149,
+  "tie_band": 0.9,
+  "rank_shown_with_ties": 4,
+  "latency_ms": {
+   "median": 97.9,
+   "p95": 1080.3,
+   "mean": 260,
+   "measured_by": "the board's maintainers, single process on one RTX PRO 6000, private held-out sample"
+  },
+  "maintainer_notes": [
+   "New in the 2026-10-10 PR batch (PR #109).",
+   "Submitted public 0.3 run adopted (kit rescore 59.79, equal to the claim). Private tests run by the lab on one RTX PRO 6000 with the author's serving (vLLM --quantization fp8 (dynamic FP8 at load of the bf16 checkpoint)); decision agreement with the submitted rows 98.18% on 827 rows (bar 96%).",
+   "No training: prompt, restricted label readout, rotation averaging and a label-free running prior on stock gemma-4-31B-it.",
+   "Served in FP8 (vLLM dynamic quantization at load), so the quantized agreement bar applies: 98.18% vs 96%.",
+   "Running prior is per process and history-dependent; submitted environment provenance does not match the published engine."
+  ]
+ }
+}

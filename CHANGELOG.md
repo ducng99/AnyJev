@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **README: the training-free path on the Decision Index 0.3 board.** The `Decider` at L0 (two rotations,
+  no training, no labels) on the unchanged google/gemma-4-31B-it, served in FP8 by vLLM 0.29.0: Full score 60.22,
+  5th of 149 entries on 2026-10-12, with the private parts and the latency measured by the board's maintainers.
+  The numbers are in `bench/results_decision_index/2026-10-12/` and checked by `tests/test_readme_numbers.py`;
+  the engine is github.com/MorrisZJ/anyjev-l0-gemma.
 - **New: `SGLangBackend`** (`anyjev/backends/sglang.py`), the native `/generate` scoring path. It sends the
   prompt's token ids alone with `max_new_tokens=0`, `return_logprob=True` and `token_ids_logprob`, and reads
   the requested ids from `meta_info["output_token_ids_logprobs"][0]` by id, so no token is sampled. Checked

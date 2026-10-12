@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 READMES = ["README.md", "README.zh-CN.md"]
 TACIT = ROOT / "bench/results_tacit/2026-10-06"
 L0 = ROOT / "bench/results_v01/2026-09-22/Qwen__Qwen3-8B.json"
+DI = ROOT / "bench/results_decision_index/2026-10-12/anyjev-l0-gemma-4-31b.json"
 
 
 def cells(line):
@@ -45,3 +46,17 @@ def test_raw_vs_l0_table_matches_its_json(readme):
         assert want in text, (readme, metric, want)
     cov = "| %.1f%% | %.1f%% |" % (100 * task["raw"]["cov@5%"], 100 * task["L0"]["cov@5%"])
     assert cov in text, (readme, cov)
+
+
+@pytest.mark.parametrize("readme", READMES)
+def test_decision_index_numbers_match_their_json(readme):
+    b = json.loads(DI.read_text(encoding="utf-8"))["board"]
+    text = (ROOT / readme).read_text(encoding="utf-8")
+    lat = " / ".join("{:,}".format(round(b["latency_ms"][k])) for k in ("median", "mean", "p95"))
+    row = "| **%.2f** | %.2f | %.2f | %.2f | %s ms |" % (
+        b["full_score"], b["public"], b["same_skills_private"], b["new_domains_private"], lat)
+    assert row in text, (readme, row)
+    assert "Decision%%20Index%%200.3-%.2f" % b["full_score"] in text, readme       # the badge
+    assert text.count("**%.2f**" % b["full_score"]) == 2, readme                    # the callout and the table
+    rank = {"README.md": "5th of %d", "README.zh-CN.md": "%d 个条目中排第 5"}[readme] % b["entries"]
+    assert b["rank_by_full_score"] == 5 and text.count(rank) == 2, (readme, rank)

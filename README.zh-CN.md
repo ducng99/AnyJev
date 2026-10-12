@@ -8,8 +8,9 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](https://github.com/nokia-applied-research/AnyJev/blob/main/LICENSE)
 [![Technical Report](https://img.shields.io/badge/Technical%20Report-PDF-b31b1b?logo=adobeacrobatreader&logoColor=white)](https://arxiv.org/pdf/2610.00831)
 [![Models](https://img.shields.io/badge/%F0%9F%A4%97%20Tacit-models-yellow)](https://huggingface.co/collections/morriszjm/tacit-6ac41d0b50af9e5417c5c234)
+[![Decision Index](https://img.shields.io/badge/Decision%20Index%200.3-60.22-8b5cf6)](https://huggingface.co/spaces/multimodalart/jev-decision-index)
 
-[English](https://github.com/nokia-applied-research/AnyJev/blob/main/README.md) · **简体中文** · [⚡ 跑起来](#-跑起来) · [📊 结果](#-tacit-结果) · [🧭 路线图](#-路线图) · [📖 档位约定](https://github.com/nokia-applied-research/AnyJev/blob/main/docs/levels.md)
+[English](https://github.com/nokia-applied-research/AnyJev/blob/main/README.md) · **简体中文** · [⚡ 跑起来](#-跑起来) · [📊 结果](#-tacit-结果) · [🏆 排行榜](#-decision-index-上的免训练结果) · [🧭 路线图](#-路线图) · [📖 档位约定](https://github.com/nokia-applied-research/AnyJev/blob/main/docs/levels.md)
 
 </div>
 
@@ -35,6 +36,11 @@
 > 支持 transformers、进程内 vLLM 和原版 `vllm serve`。
 > `pip install "anyjev[hf]"`，然后 `Tacit.from_pretrained("morriszjm/Tacit-9B")`。
 > [从这里开始 ↓](#-跑起来)
+
+> [!NOTE]
+> **🏆 不训练，上公开排行榜。** 免训练的 `Decider`（L0，两次轮换）用原版 Gemma-4-31B，在
+> [Decision Index 0.3](https://huggingface.co/spaces/multimodalart/jev-decision-index) 上的总分（Full score）是 **60.22**，2026-10-12 在 149 个条目中排第 5。
+> [详情 ↓](#-decision-index-上的免训练结果)
 
 ## ⚡ 跑起来
 
@@ -169,6 +175,24 @@ vLLM 上每秒决策数是原来的 2.2×，transformers 上是 2.3×–2.7×，
 
 打开转推理后，平均每个决策多生成的 token：Tacit-9B 在 JevBench 上 567 个、bev-decision 上 458 个；Tacit-4B 分别是 305 和 187 个。Tacit-8B、2B、1.7B 打开转推理的结果随后补上。
 
+## 🏆 Decision Index 上的免训练结果
+
+L0 档的 `Decider`，用未改动的 [`google/gemma-4-31B-it`](https://huggingface.co/google/gemma-4-31B-it)：不训练、不用标签，
+每个决策读两次轮换。在 [Decision Index 0.3](https://huggingface.co/spaces/multimodalart/jev-decision-index) 排行榜上，按总分（Full score）在 149 个条目中排第 5（2026-10-12）。
+
+<div align="center">
+
+| 总分 | 公开部分 <sub>20%</sub> | 同技能私有测试 <sub>50%</sub> | 新领域私有测试 <sub>30%</sub> | 延迟 中位数 / 平均 / p95 |
+|:--:|:--:|:--:|:--:|:--:|
+| **60.22** | 59.79 | 59.13 | 52.98 | 98 / 260 / 1,080 ms |
+
+<sub>两个私有部分和延迟由排行榜维护者测量（单进程，一张 RTX PRO 6000）。用 `vllm serve --quantization fp8`（vLLM 0.29.0）
+服务，anyjev 0.3.0。引擎和运行设置：[anyjev-l0-gemma](https://github.com/MorrisZJ/anyjev-l0-gemma)；模型卡：
+[AnyJev-L0-Gemma-4-31B](https://huggingface.co/morriszjm/AnyJev-L0-Gemma-4-31B) ·
+`bench/results_decision_index/2026-10-12/anyjev-l0-gemma-4-31b.json`</sub>
+
+</div>
+
 ## 🧠 怎么读出一个决策
 
 <p align="center">
@@ -193,6 +217,7 @@ vLLM 上每秒决策数是原来的 2.2×，transformers 上是 2.3×–2.7×，
 - [x] 旋转预算：L0 平均读 18 次轮换里的 7 次左右，停止门槛不用标签就能证明
 - [x] **Tacit-1.7B、2B、4B、8B、9B** 发布在 Hugging Face；库里的 `Tacit` 支持 transformers、vLLM 和 `vllm serve`，带有上限的转推理和 HTTP 网关
 - [x] 评测代码（`scripts/eval_tacit.py`）；Tacit-9B 和 Tacit-4B 打开转推理的结果
+- [x] 免训练路线上了公开的 Decision Index 0.3 排行榜（[Gemma-4-31B 上的 L0](#-decision-index-上的免训练结果)）
 - [ ] 🚧 Tacit-8B、2B、1.7B 打开转推理的结果
 - [ ] 🚧 无标签的提前退出：只用模型的一部分层读出决策，层数按与完整模型的一致率来选
 - [ ] **Agent 循环里的评测**：把同样的决策放进真实的 agent 里
