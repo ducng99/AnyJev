@@ -38,6 +38,7 @@ client = ["transformers>=4.53"]
 eval = ["datasets>=2.20", "transformers>=4.53"]
 # anyjev.backends.llamacpp: GGUF models through llama-cpp-python
 llamacpp = ["llama-cpp-python>=0.3.16"]
+# anyjev.backends.llamacpp_server: a client of a running llama-server; needs nothing beyond numpy
 # jinja2 so CI exercises the default GGUF chat-template path (llama-cpp-python depends on it too)
 dev = ["pytest>=8", "ruff", "jinja2"]
 

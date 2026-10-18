@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **New: `LlamaCppServerBackend`** (`anyjev/backends/llamacpp_server.py`), a client of a running
+  `llama-server` that scores the labels from the native `/completion` endpoint: one request per prompt
+  with `n_predict=1` (the sampled token is discarded) and `n_probs` asked for the whole vocabulary, so
+  the reply's `completion_probabilities[0].top_logprobs` are the full-vocabulary log-softmax of the raw
+  logits — exactly what `HFBackend` reports, with no label ever missing (an integer `n_probs` caps the
+  reply at the top N; a label outside it raises `LabelTokenError`). The default tokenizer is the
+  server's own vocabulary over `/tokenize`, `/detokenize` and `/apply-template`, so no transformers and
+  no local GGUF are needed; `tokenizer_name` switches to the vLLM pattern. Contract tests against a
+  stub in CI (`tests/test_llamacpp_server.py`); the engine smoke test is marked `@pytest.mark.engine`;
+  parity against transformers in `scripts/llamacpp_server_parity.py`.
+- **Fix: `LlamaCppServerBackend` takes the served model name from the caller.** A llama-server
+  router rejects requests without `model` (HTTP 400 on /tokenize, /detokenize, /apply-template
+  and /completion), and its `/props` describes the router rather than a child model.
+  `LlamaCppServerBackend(url, model)` now requires `model`, sends it on every request, and no
+  longer probes `/props`.
 - **New: `examples/decision_index/`**, the engine behind the Decision Index board entry (L0 on
   google/gemma-4-31B-it): `anyjev_engine.py`, `serve.sh`, `run.sh` and `requirements.txt`, unchanged from the
   submitted run (github.com/MorrisZJ/anyjev-l0-gemma at 50476e9, which the board links to and which stays as it

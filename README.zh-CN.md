@@ -108,7 +108,8 @@ curl -s 127.0.0.1:8100/v1/decide -H 'Content-Type: application/json' \
 
 ```python
 from anyjev import Decider, Question
-from anyjev.backends.hf import HFBackend          # 或 anyjev.backends 里的 VLLMBackend / SGLangBackend(url, model)、LlamaCppBackend(gguf)
+from anyjev.backends.hf import HFBackend          # 或 anyjev.backends 里的 VLLMBackend / SGLangBackend(url, model)、LlamaCppBackend(gguf)、
+                                                  # LlamaCppServerBackend(url, "served-model")
 
 d = Decider(HFBackend("Qwen/Qwen3-8B"))           # 默认 level="L0"
 route = Question.choice("这条工单该由哪个团队处理？",
