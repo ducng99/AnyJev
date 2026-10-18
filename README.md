@@ -99,9 +99,10 @@ tacit = Tacit.from_pretrained("morriszjm/Tacit-9B", engine="llamacpp",
 ```
 
 The engine speaks llama-server's native `/completion` (its OpenAI-shaped endpoint does not report
-token ids) and scores the whole vocabulary, so a label is never missing from the reply. A GGUF
-repo carries its vocabulary inside the `.gguf` file and ships no tokenizer files, so pass
-`tokenizer=` with the original model repo when the model repo is a GGUF.
+token ids) and scores the whole vocabulary, so a label is never missing from the reply. Every
+request names the model after `repo`. A GGUF repo carries its vocabulary inside the `.gguf` file
+and ships no tokenizer files, so pass `tokenizer=` with the original model repo when the model
+repo is a GGUF.
 
 **An HTTP endpoint for many clients sharing one cap.**
 

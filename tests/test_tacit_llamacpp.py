@@ -1,9 +1,9 @@
 """The Tacit `llamacpp` engine against a stub llama-server: prompts as token ids, labels read by id,
 escalation over the native /completion endpoint -- no model, no GPU, no transformers.
 
-The stub reproduces llama-server's shapes for a batched native request: "prompt" as an array of
-token-id arrays (one task per prompt), replies that carry an "index" and collapse to a single object
-when the batch has one prompt. With `n_predict=1` the reply carries the scores in
+The stub reproduces llama-server's shapes for a batched native request: a model name, "prompt" as an
+array of token-id arrays (one task per prompt), replies that carry an "index" and collapse to a single
+object when the batch has one prompt. With `n_predict=1` the reply carries the scores in
 `completion_probabilities[0].top_logprobs`; with a larger `n_predict` it is a generation whose content
 stops before the stop word, because llama-server does not echo it back.
 """
@@ -107,8 +107,8 @@ def stub():
     srv.shutdown()
 
 
-def engine(stub, **kw):
-    return LlamaCppEngine(stub, Tok(), **kw)
+def engine(stub, model="tacit-9b", **kw):
+    return LlamaCppEngine(stub, model, Tok(), **kw)
 
 
 def tacit(stub, **kw):
@@ -130,7 +130,7 @@ def test_one_forward_posts_the_token_ids_of_the_training_prompt_and_reads_the_la
     body, auth = _Stub.requests[0]
     assert auth is None
     text = one_forward_text(eng.tok, "S", "Q?", ["track", "refund"])
-    assert body == {"prompt": [eng.tok(text, add_special_tokens=False).input_ids],
+    assert body == {"model": "tacit-9b", "prompt": [eng.tok(text, add_special_tokens=False).input_ids],
                     "n_predict": 1, "temperature": 0.0, "cache_prompt": True, "n_probs": 1 << 30}
     # the labels were scored by id (-1.5 for A, -0.25 for B) and renormalized over the two of them
     w = np.exp([-1.5, -0.25])
@@ -147,7 +147,8 @@ def test_an_escalated_decision_generates_with_the_think_stop_and_reads_after_the
     labels, _ = resolve_labels(eng.tok, q)
     prompt = _render_thinking(eng.tok, COT_SYSTEM, cot_user("unsure", q, labels))
     gen_body, _ = _Stub.requests[1]
-    assert gen_body == {"prompt": [eng.tok(prompt).input_ids], "n_predict": t.cot_max_tokens,
+    assert gen_body == {"model": "tacit-9b", "prompt": [eng.tok(prompt).input_ids],
+                        "n_predict": t.cot_max_tokens,
                         "stop": ["</think>"], "cache_prompt": True,
                         "temperature": 0.6, "top_p": 0.95, "top_k": 20}
     # llama-server drops the stop word, so the thought is closed by hand before the read
@@ -206,6 +207,14 @@ def test_the_api_key_is_a_bearer_token_with_an_environment_fallback(stub, monkey
     assert _Stub.requests[-1][1] is None
 
 
+def test_every_request_names_the_model(stub):
+    eng = engine(stub, model="tacit-9b")
+    eng.read(["p"], [[41]])
+    assert _Stub.requests[-1][0]["model"] == "tacit-9b"
+    eng.reason_read(["p"], [[41]], 8, {"temperature": 0.6})
+    assert _Stub.requests[-1][0]["model"] == "tacit-9b"
+
+
 def test_from_pretrained_needs_a_base_url_and_rejects_unknown_engines():
     with pytest.raises(ValueError, match="base_url"):
         Tacit.from_pretrained("some/tacit", engine="llamacpp")
@@ -224,7 +233,9 @@ def test_from_pretrained_takes_the_tokenizer_from_another_repo(monkeypatch):
     fake.AutoTokenizer = _Auto
     monkeypatch.setitem(sys.modules, "transformers", fake)
 
-    # a GGUF repo ships no tokenizer files, so the tokenizer comes from the original model repo
+    # a GGUF repo ships no tokenizer files, so the tokenizer comes from the original model repo, and
+    # the model name on the request is the repo itself
     tacit = Tacit.from_pretrained("some/tacit-gguf", engine="llamacpp", base_url="http://127.0.0.1:8080",
                                   tokenizer="some/tacit")
     assert tacit.tok == "tok"
+    assert tacit.engine.model == "some/tacit-gguf"

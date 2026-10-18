@@ -29,6 +29,9 @@
   failed with "Couldn't instantiate the backend tokenizer"; passing `tokenizer=` with the original
   model repo (or a local path) loads the tokenizer from there, in the `"llamacpp"`, `"server"` and
   `"transformers"` engines alike.
+- **Fix: the `Tacit` `"llamacpp"` engine names the model on every request.** llama-server expects
+  `model` in the body even on the native /completion endpoint and rejects the request without one
+  ("model name is missing from the request"); the engine sends `repo` as the name.
 - **New: `examples/decision_index/`**, the engine behind the Decision Index board entry (L0 on
   google/gemma-4-31B-it): `anyjev_engine.py`, `serve.sh`, `run.sh` and `requirements.txt`, unchanged from the
   submitted run (github.com/MorrisZJ/anyjev-l0-gemma at 50476e9, which the board links to and which stays as it

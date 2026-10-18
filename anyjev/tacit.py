@@ -267,11 +267,13 @@ class LlamaCppEngine:
     top N tokens, and a label outside it raises `LabelTokenError` instead of counting as probability
     zero. llama-server does not echo the stop word back (there is no include_stop_str_in_output), so
     an escalated thought arrives without its `</think>` and `_close_thought` closes it, exactly as the
-    transformers engine's `stop_strings` already does."""
+    transformers engine's `stop_strings` already does. Every request names the model: llama-server
+    expects `model` in the body even on the native endpoint, and `from_pretrained` sends the repo."""
 
-    def __init__(self, base_url: str, tok, api_key: Optional[str] = None, timeout: float = 3600.0,
-                 n_probs: Optional[int] = None):
+    def __init__(self, base_url: str, model: str, tok, api_key: Optional[str] = None,
+                 timeout: float = 3600.0, n_probs: Optional[int] = None):
         self.base_url = base_url.rstrip("/")
+        self.model = model
         self.tok, self.timeout, self.k = tok, timeout, n_probs
         self.api_key = api_key or os.environ.get("TACIT_API_KEY")
 
@@ -279,7 +281,7 @@ class LlamaCppEngine:
         return self.tok(text, add_special_tokens=False).input_ids
 
     def _complete(self, prompts_ids: List[List[int]], **params) -> List[Dict[str, Any]]:
-        body = dict(prompt=prompts_ids, cache_prompt=True, **params)
+        body = dict(model=self.model, prompt=prompts_ids, cache_prompt=True, **params)
         req = urllib.request.Request(self.base_url + "/completion", data=json.dumps(body).encode(),
                                      headers={"Content-Type": "application/json"})
         if self.api_key:
@@ -388,7 +390,8 @@ class Tacit:
         """engine: "transformers" (default), "vllm" (vLLM in this process; `vllm_kwargs` go to
         `vllm.LLM`), "server" (a running `vllm serve` at `base_url`, its root or /v1 URL) or
         "llamacpp" (a running `llama-server` at `base_url`, its native /completion API; `n_probs=None`
-        scores the whole vocabulary). `tokenizer` names a repo (or local path) to load the tokenizer
+        scores the whole vocabulary; every request names the model after `repo`). `tokenizer`
+        names a repo (or local path) to load the tokenizer
         from when the model repo ships none — a GGUF repo carries its vocabulary inside the .gguf
         file, so point `tokenizer` at the original model repo. The other keyword arguments go to
         `Tacit` (adaptive, tau, max_cot_share, cot_window, ...)."""
@@ -405,7 +408,7 @@ class Tacit:
             from transformers import AutoTokenizer
 
             tok = AutoTokenizer.from_pretrained(tokenizer or repo)
-            return cls(LlamaCppEngine(base_url, tok, api_key, n_probs=n_probs), tok, **kwargs)
+            return cls(LlamaCppEngine(base_url, repo, tok, api_key, n_probs=n_probs), tok, **kwargs)
         if engine == "vllm":
             # the engine runs in this process unless the caller says otherwise: a spawned engine
             # re-imports the calling script, which breaks scripts without a __main__ guard and notebooks
