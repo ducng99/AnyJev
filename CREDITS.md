@@ -7,6 +7,7 @@ AnyJev stands on other people's work. Attribution lives here, not in identifiers
 - **TypeSafe AI, Jev**: the product that defined the interface (state, typed questions, calibrated answers in one pass). Not affiliated.
 - **Qwen** (Apache-2.0): the base models of the Tacit checkpoints, Qwen3-1.7B, Qwen3-4B, Qwen3-8B, Qwen3.5-2B and Qwen3.5-9B.
 - **vLLM** (Apache-2.0): the inference engine behind `Tacit(engine="vllm")`, `engine="server"` and `VLLMBackend`.
+- **llama.cpp** (MIT): the GGUF engine behind `LlamaCppBackend`, `LlamaCppServerBackend` and `Tacit(engine="llamacpp")`.
 - **JevBench** (fstandhartinger/jevbench, MIT) and **bev-decision** (avbiswas/bev-decision): the two benchmarks the Tacit results are reported on.
 - The open readout clones that documented the problem first: SemIf, LitJev, the OpenJev servers, poorjev, open-llm-classifier. Their READMEs said the probabilities were not calibrated and the order mattered; this repo measures it.
 

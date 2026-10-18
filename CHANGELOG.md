@@ -17,6 +17,13 @@
   and /completion), and its `/props` describes the router rather than a child model.
   `LlamaCppServerBackend(url, model)` now requires `model`, sends it on every request, and no
   longer probes `/props`.
+- **New: `Tacit` engine `"llamacpp"`**, next to `"server"` (`vllm serve`): a running `llama-server` is
+  reached over its native `/completion` endpoint, the only one whose reply carries token ids with its
+  log-probabilities, so the labels are read by id. Prompts go as the ids of the training prompt (a
+  string prompt would be tokenized by the server with its own special tokens and pick up a BOS), one
+  request carries a whole batch as an array of token-id arrays, and `n_probs=None` scores the whole
+  vocabulary, so a label can never be silently missing. The client loads only the tokenizer. Contract
+  tests against a stub in `tests/test_tacit_llamacpp.py`.
 - **New: `examples/decision_index/`**, the engine behind the Decision Index board entry (L0 on
   google/gemma-4-31B-it): `anyjev_engine.py`, `serve.sh`, `run.sh` and `requirements.txt`, unchanged from the
   submitted run (github.com/MorrisZJ/anyjev-l0-gemma at 50476e9, which the board links to and which stays as it

@@ -24,7 +24,8 @@ reasoning on a model that serves for days; `cot_window=None` counts every decisi
 `max_cot_share=None` removes the cap.
 
 Engines: "transformers" (default), "vllm" (in this process), "server" (a running `vllm serve`,
-reached over its OpenAI-compatible API; the client loads only the tokenizer).
+reached over its OpenAI-compatible API), "llamacpp" (a running `llama-server`, reached over its
+native `/completion` API; both server engines load only the tokenizer).
 """
 from __future__ import annotations
 
@@ -45,6 +46,7 @@ import numpy as np
 from anyjev.question import Question
 from anyjev.readout import (
     DEFAULT_SYSTEM,
+    LabelTokenError,
     build_prompt,
     label_ids_for_perm,
     map_label_tokens,
@@ -254,6 +256,73 @@ class ServerEngine:
         return list(zip(self.read(texts, label_ids), ntok))
 
 
+class LlamaCppEngine:
+    """A running `llama-server`, over its native /completion endpoint rather than the OpenAI-shaped /v1
+    one: only the native reply carries token ids next to its log-probabilities. Prompts go as token ids, never as
+    strings -- the server tokenizes a string prompt with its own special tokens, which would add a BOS
+    the training prompt does not carry. One request carries a whole batch: an array of token-id arrays
+    becomes one task per prompt and every reply names its `index` (a single-prompt reply comes back as
+    one object, normalized here). `n_probs=None` asks for the whole vocabulary, so the scores are the
+    exact full-vocabulary log-softmax and a label cannot be missing; an integer caps the reply at the
+    top N tokens, and a label outside it raises `LabelTokenError` instead of counting as probability
+    zero. llama-server does not echo the stop word back (there is no include_stop_str_in_output), so
+    an escalated thought arrives without its `</think>` and `_close_thought` closes it, exactly as the
+    transformers engine's `stop_strings` already does."""
+
+    def __init__(self, base_url: str, tok, api_key: Optional[str] = None, timeout: float = 3600.0,
+                 n_probs: Optional[int] = None):
+        self.base_url = base_url.rstrip("/")
+        self.tok, self.timeout, self.k = tok, timeout, n_probs
+        self.api_key = api_key or os.environ.get("TACIT_API_KEY")
+
+    def _ids(self, text: str) -> List[int]:
+        return self.tok(text, add_special_tokens=False).input_ids
+
+    def _complete(self, prompts_ids: List[List[int]], **params) -> List[Dict[str, Any]]:
+        body = dict(prompt=prompts_ids, cache_prompt=True, **params)
+        req = urllib.request.Request(self.base_url + "/completion", data=json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json"})
+        if self.api_key:
+            req.add_header("Authorization", "Bearer " + self.api_key)
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as r:
+                out = json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            raise RuntimeError("llama.cpp server %s: %s %s" % (self.base_url, e.code, e.read()[:500])) from None
+        return sorted(out if isinstance(out, list) else [out], key=lambda c: c.get("index", 0))
+
+    def _read_ids(self, prompts_ids: List[List[int]], label_ids: List[List[int]]) -> List[np.ndarray]:
+        res = self._complete(prompts_ids, n_predict=1, temperature=0.0,
+                             n_probs=(1 << 30) if self.k is None else int(self.k))
+        out = []
+        for c, ids in zip(res, label_ids):
+            try:
+                top = c["completion_probabilities"][0]["top_logprobs"]
+            except (KeyError, IndexError, TypeError):
+                raise RuntimeError("llama.cpp server: the reply carries no completion_probabilities "
+                                   "for the first predicted token; n_probs must be positive") from None
+            lp = {int(t["id"]): float(t["logprob"]) for t in top if t.get("logprob") is not None}
+            missing = [int(t) for t in ids if int(t) not in lp]
+            if missing:
+                raise LabelTokenError(
+                    "llama.cpp server: no log-probability for label token ids %s in its top %d "
+                    "(n_probs=%s); leave n_probs unset to score the whole vocabulary"
+                    % (missing, len(top), self.k))
+            out.append(restricted_logprobs([lp[int(t)] for t in ids]))
+        return out
+
+    def read(self, texts: List[str], label_ids: List[List[int]]) -> List[np.ndarray]:
+        return self._read_ids([self._ids(t) for t in texts], label_ids)
+
+    def reason_read(self, prompts: List[str], label_ids: List[List[int]], max_tokens: int,
+                    sampling: Dict[str, Any]) -> List[Tuple[np.ndarray, int]]:
+        choices = self._complete([self._ids(p) for p in prompts], n_predict=max_tokens,
+                                 stop=["</think>"], **sampling)
+        texts = [p + _close_thought(c["content"]) + "\n\nAnswer:" for p, c in zip(prompts, choices)]
+        ntok = [len(self._ids(c["content"])) for c in choices]
+        return list(zip(self.read(texts, label_ids), ntok))
+
+
 def _needs_native_gdn(repo: str) -> bool:
     """Qwen3.5 (gated delta rule) on a machine where vLLM's default kernel cannot be compiled."""
     try:                                             # config.json itself: older transformers do not know qwen3_5
@@ -314,10 +383,13 @@ class Tacit:
     def from_pretrained(cls, repo: str, *, engine: str = "transformers", dtype: str = "bfloat16",
                         device_map: Optional[str] = "auto", vllm_kwargs: Optional[Dict[str, Any]] = None,
                         logprobs: int = 20, native_gdn: Optional[bool] = None, base_url: Optional[str] = None,
-                        api_key: Optional[str] = None, served_model: Optional[str] = None, **kwargs) -> "Tacit":
+                        api_key: Optional[str] = None, served_model: Optional[str] = None,
+                        n_probs: Optional[int] = None, **kwargs) -> "Tacit":
         """engine: "transformers" (default), "vllm" (vLLM in this process; `vllm_kwargs` go to
-        `vllm.LLM`) or "server" (a running `vllm serve` at `base_url`, its root or /v1 URL).
-        The other keyword arguments go to `Tacit` (adaptive, tau, max_cot_share, cot_window, ...)."""
+        `vllm.LLM`), "server" (a running `vllm serve` at `base_url`, its root or /v1 URL) or
+        "llamacpp" (a running `llama-server` at `base_url`, its native /completion API; `n_probs=None`
+        scores the whole vocabulary). The other keyword arguments go to `Tacit` (adaptive, tau,
+        max_cot_share, cot_window, ...)."""
         if engine == "server":
             from transformers import AutoTokenizer
             if not base_url:
@@ -325,6 +397,13 @@ class Tacit:
             tok = AutoTokenizer.from_pretrained(repo)
             kwargs.setdefault("batch_size", 1 << 30)
             return cls(ServerEngine(base_url, served_model or repo, tok, api_key, logprobs), tok, **kwargs)
+        if engine == "llamacpp":
+            if not base_url:
+                raise ValueError('engine="llamacpp" needs base_url, e.g. "http://127.0.0.1:8080"')
+            from transformers import AutoTokenizer
+
+            tok = AutoTokenizer.from_pretrained(repo)
+            return cls(LlamaCppEngine(base_url, tok, api_key, n_probs=n_probs), tok, **kwargs)
         if engine == "vllm":
             # the engine runs in this process unless the caller says otherwise: a spawned engine
             # re-imports the calling script, which breaks scripts without a __main__ guard and notebooks
@@ -339,7 +418,7 @@ class Tacit:
             kwargs.setdefault("batch_size", 1 << 30)       # vLLM batches internally
             return cls(VLLMEngine(llm, tok, logprobs), tok, **kwargs)
         if engine != "transformers":
-            raise ValueError('engine must be "transformers", "vllm" or "server"')
+            raise ValueError('engine must be "transformers", "vllm", "server" or "llamacpp"')
         import torch
         import transformers
         from transformers import AutoModelForCausalLM, AutoTokenizer

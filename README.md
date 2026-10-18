@@ -33,7 +33,8 @@
 > **🆕 Tacit: AnyJev's self-distilled models, 1.7B to 9B, are on
 > [Hugging Face](https://huggingface.co/collections/morriszjm/tacit-6ac41d0b50af9e5417c5c234).** One
 > forward pass per decision. With `adaptive=True`, a capped share of low-confidence decisions goes to
-> the model's own reasoning. They run on transformers, in-process vLLM or a stock `vllm serve`.
+> the model's own reasoning. They run on transformers, in-process vLLM, a stock `vllm serve` or a
+> stock `llama-server`.
 > `pip install "anyjev[hf]"`, then `Tacit.from_pretrained("morriszjm/Tacit-9B")`.
 > [Start here ↓](#-serve-it)
 
@@ -85,6 +86,21 @@ tacit = Tacit.from_pretrained("morriszjm/Tacit-9B", engine="server",
 
 `engine="vllm"` (`pip install "anyjev[vllm]"`) runs vLLM in the same process instead.
 
+**On llama.cpp.** Also a stock server; the client needs only the tokenizer.
+
+```bash
+pip install "anyjev[client]"
+llama-server -m Tacit-9B.gguf --host 127.0.0.1 --port 8080
+```
+
+```python
+tacit = Tacit.from_pretrained("morriszjm/Tacit-9B", engine="llamacpp",
+                              base_url="http://127.0.0.1:8080", adaptive=True)
+```
+
+The engine speaks llama-server's native `/completion` (its OpenAI-shaped endpoint does not report
+token ids) and scores the whole vocabulary, so a label is never missing from the reply.
+
 **An HTTP endpoint for many clients sharing one cap.**
 
 ```bash
@@ -103,7 +119,7 @@ share. The gateway listens on 127.0.0.1 and has no authentication of its own.
 | `max_cot_share` | `0.2` | at most this share of the last `cot_window` decisions escalates; `None` removes the cap |
 | `cot_window` | `1000` | how many recent decisions the cap counts; `None` counts every decision since loading |
 | `cot_max_tokens` | `8192` | reasoning budget of one decision |
-| `engine` | `"transformers"` | `"vllm"` runs vLLM in this process; `"server"` uses a running `vllm serve` at `base_url` |
+| `engine` | `"transformers"` | `"vllm"` runs vLLM in this process; `"server"` uses a running `vllm serve` at `base_url`; `"llamacpp"` uses a running `llama-server` at `base_url` |
 
 **Any other model, training-free.** The `Decider` reads the same typed decisions from any open
 causal LM, with no training and no labels.
