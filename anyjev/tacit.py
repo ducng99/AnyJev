@@ -384,17 +384,19 @@ class Tacit:
                         device_map: Optional[str] = "auto", vllm_kwargs: Optional[Dict[str, Any]] = None,
                         logprobs: int = 20, native_gdn: Optional[bool] = None, base_url: Optional[str] = None,
                         api_key: Optional[str] = None, served_model: Optional[str] = None,
-                        n_probs: Optional[int] = None, **kwargs) -> "Tacit":
+                        tokenizer: Optional[str] = None, n_probs: Optional[int] = None, **kwargs) -> "Tacit":
         """engine: "transformers" (default), "vllm" (vLLM in this process; `vllm_kwargs` go to
         `vllm.LLM`), "server" (a running `vllm serve` at `base_url`, its root or /v1 URL) or
         "llamacpp" (a running `llama-server` at `base_url`, its native /completion API; `n_probs=None`
-        scores the whole vocabulary). The other keyword arguments go to `Tacit` (adaptive, tau,
-        max_cot_share, cot_window, ...)."""
+        scores the whole vocabulary). `tokenizer` names a repo (or local path) to load the tokenizer
+        from when the model repo ships none — a GGUF repo carries its vocabulary inside the .gguf
+        file, so point `tokenizer` at the original model repo. The other keyword arguments go to
+        `Tacit` (adaptive, tau, max_cot_share, cot_window, ...)."""
         if engine == "server":
             from transformers import AutoTokenizer
             if not base_url:
                 raise ValueError('engine="server" needs base_url, e.g. "http://127.0.0.1:8000"')
-            tok = AutoTokenizer.from_pretrained(repo)
+            tok = AutoTokenizer.from_pretrained(tokenizer or repo)
             kwargs.setdefault("batch_size", 1 << 30)
             return cls(ServerEngine(base_url, served_model or repo, tok, api_key, logprobs), tok, **kwargs)
         if engine == "llamacpp":
@@ -402,7 +404,7 @@ class Tacit:
                 raise ValueError('engine="llamacpp" needs base_url, e.g. "http://127.0.0.1:8080"')
             from transformers import AutoTokenizer
 
-            tok = AutoTokenizer.from_pretrained(repo)
+            tok = AutoTokenizer.from_pretrained(tokenizer or repo)
             return cls(LlamaCppEngine(base_url, tok, api_key, n_probs=n_probs), tok, **kwargs)
         if engine == "vllm":
             # the engine runs in this process unless the caller says otherwise: a spawned engine
@@ -422,7 +424,7 @@ class Tacit:
         import torch
         import transformers
         from transformers import AutoModelForCausalLM, AutoTokenizer
-        tok = AutoTokenizer.from_pretrained(repo)
+        tok = AutoTokenizer.from_pretrained(tokenizer or repo)
         if device_map is not None and importlib.util.find_spec("accelerate") is None:
             device_map = None                            # device_map needs accelerate; place the model by hand
         # transformers 5 renamed `torch_dtype` to `dtype`; an older release would drop `dtype` silently

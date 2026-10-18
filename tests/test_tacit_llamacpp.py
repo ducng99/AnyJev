@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import threading
 import types
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -210,3 +211,20 @@ def test_from_pretrained_needs_a_base_url_and_rejects_unknown_engines():
         Tacit.from_pretrained("some/tacit", engine="llamacpp")
     with pytest.raises(ValueError, match="llamacpp"):
         Tacit.from_pretrained("some/tacit", engine="wat")
+
+
+def test_from_pretrained_takes_the_tokenizer_from_another_repo(monkeypatch):
+    class _Auto:
+        @staticmethod
+        def from_pretrained(name, *a, **kw):
+            assert name == "some/tacit"
+            return "tok"
+
+    fake = types.ModuleType("transformers")
+    fake.AutoTokenizer = _Auto
+    monkeypatch.setitem(sys.modules, "transformers", fake)
+
+    # a GGUF repo ships no tokenizer files, so the tokenizer comes from the original model repo
+    tacit = Tacit.from_pretrained("some/tacit-gguf", engine="llamacpp", base_url="http://127.0.0.1:8080",
+                                  tokenizer="some/tacit")
+    assert tacit.tok == "tok"

@@ -24,6 +24,11 @@
   request carries a whole batch as an array of token-id arrays, and `n_probs=None` scores the whole
   vocabulary, so a label can never be silently missing. The client loads only the tokenizer. Contract
   tests against a stub in `tests/test_tacit_llamacpp.py`.
+- **Fix: `Tacit.from_pretrained` grew a `tokenizer=` argument.** A GGUF repo carries its vocabulary
+  inside the `.gguf` file and ships no tokenizer files, so `AutoTokenizer.from_pretrained(repo)`
+  failed with "Couldn't instantiate the backend tokenizer"; passing `tokenizer=` with the original
+  model repo (or a local path) loads the tokenizer from there, in the `"llamacpp"`, `"server"` and
+  `"transformers"` engines alike.
 - **New: `examples/decision_index/`**, the engine behind the Decision Index board entry (L0 on
   google/gemma-4-31B-it): `anyjev_engine.py`, `serve.sh`, `run.sh` and `requirements.txt`, unchanged from the
   submitted run (github.com/MorrisZJ/anyjev-l0-gemma at 50476e9, which the board links to and which stays as it
