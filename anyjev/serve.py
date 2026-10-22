@@ -63,6 +63,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     ap = argparse.ArgumentParser(prog="python -m anyjev.serve",
                                  description="Tacit decisions over HTTP, in front of a running `vllm serve`.")
     ap.add_argument("--model", required=True, help="the repo vLLM serves, e.g. morriszjm/Tacit-9B")
+    ap.add_argument("--engine", choices=["server", "llamacpp"], default="server")
     ap.add_argument("--upstream", default="http://127.0.0.1:8000/v1", help="the vLLM server's URL (root or /v1)")
     ap.add_argument("--served-model", default=None, help="vLLM's --served-model-name, if it was set")
     ap.add_argument("--host", default="127.0.0.1")
@@ -73,7 +74,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     ap.add_argument("--cot-window", type=int, default=1000, help="0 counts every decision since start")
     ap.add_argument("--cot-max-tokens", type=int, default=8192)
     a = ap.parse_args(argv)
-    tacit = Tacit.from_pretrained(a.model, engine="server", base_url=a.upstream, served_model=a.served_model,
+    tacit = Tacit.from_pretrained(a.model, engine=a.engine, base_url=a.upstream, served_model=a.served_model,
                                   adaptive=a.adaptive, tau=a.tau,
                                   max_cot_share=None if a.max_cot_share < 0 else a.max_cot_share,
                                   cot_window=a.cot_window or None, cot_max_tokens=a.cot_max_tokens)
