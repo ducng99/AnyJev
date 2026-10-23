@@ -64,10 +64,14 @@ class LlamaCppServerTokenizer:
     """The server's own tokenizer, over its `/tokenize`, `/detokenize` and `/apply-template`
     endpoints. `chat_template` is a non-empty marker: the template itself stays on the server
     and is applied by `/apply-template`, so readout routes rendering there instead of falling
-    back to plain text."""
+    back to plain text. With `template_kwargs=True`, keyword arguments of `apply_chat_template`
+    (e.g. `enable_thinking`) are sent as the request's `chat_template_kwargs`; off by default,
+    which keeps them unforwarded."""
 
     def __init__(self, base_url: str, model: str, api_key: Optional[str] = None,
-                 timeout: float = 120.0, chat_template: Optional[str] = None):
+                 timeout: float = 120.0, chat_template: Optional[str] = None,
+                 template_kwargs: bool = False):
+        self.template_kwargs = template_kwargs
         self.base_url = base_url
         self.api_key = api_key
         self.timeout = timeout
@@ -100,9 +104,10 @@ class LlamaCppServerTokenizer:
         if not add_generation_prompt:
             raise ValueError("/apply-template always appends the generation prompt; "
                              "add_generation_prompt=False is not supported by this tokenizer")
-        out = _post_json(self.base_url + "/apply-template",
-                         self._body(messages=list(messages)),
-                         self.api_key, self.timeout)
+        body = self._body(messages=list(messages))
+        if self.template_kwargs and kwargs:
+            body["chat_template_kwargs"] = dict(kwargs)
+        out = _post_json(self.base_url + "/apply-template", body, self.api_key, self.timeout)
         text = out["prompt"]
         return self.encode(text) if tokenize else text
 

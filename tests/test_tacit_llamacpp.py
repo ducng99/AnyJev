@@ -108,13 +108,15 @@ def stub():
 
 
 def engine(stub, model="tacit-9b", **kw):
-    return LlamaCppEngine(stub, model, Tok(), **kw)
+    eng = LlamaCppEngine(stub, model, **kw)
+    eng.tok = Tok()                                  # the stub serves /completion only
+    return eng
 
 
 def tacit(stub, **kw):
     eng = engine(stub)
     kw.setdefault("max_cot_share", None)
-    return Tacit(eng, eng.tok, **kw), eng
+    return Tacit(eng, **kw), eng
 
 
 def one_forward_text(tok, state, question, options):
@@ -222,20 +224,22 @@ def test_from_pretrained_needs_a_base_url_and_rejects_unknown_engines():
         Tacit.from_pretrained("some/tacit", engine="wat")
 
 
-def test_from_pretrained_takes_the_tokenizer_from_another_repo(monkeypatch):
-    class _Auto:
-        @staticmethod
-        def from_pretrained(name, *a, **kw):
-            assert name == "some/tacit"
-            return "tok"
+def test_from_pretrained_uses_the_servers_tokenizer_without_transformers(monkeypatch):
+    from anyjev.backends.llamacpp_server import LlamaCppServerTokenizer
 
-    fake = types.ModuleType("transformers")
-    fake.AutoTokenizer = _Auto
-    monkeypatch.setitem(sys.modules, "transformers", fake)
+    monkeypatch.setitem(sys.modules, "transformers", None)        # any import of it would fail
+    tacit = Tacit.from_pretrained("some/tacit-gguf", engine="llamacpp", base_url="http://127.0.0.1:8080/")
+    assert isinstance(tacit.tok, LlamaCppServerTokenizer) and tacit.engine.tok is tacit.tok
+    assert tacit.tok.base_url == "http://127.0.0.1:8080" and tacit.tok.model == "some/tacit-gguf"
 
-    # a GGUF repo ships no tokenizer files, so the tokenizer comes from the original model repo, and
-    # the model name on the request is the repo itself
-    tacit = Tacit.from_pretrained("some/tacit-gguf", engine="llamacpp", base_url="http://127.0.0.1:8080",
-                                  tokenizer="some/tacit")
-    assert tacit.tok == "tok"
-    assert tacit.engine.model == "some/tacit-gguf"
+
+def test_the_server_tokenizer_forwards_template_kwargs(monkeypatch):
+    from anyjev.backends import llamacpp_server as m
+
+    sent = []
+    monkeypatch.setattr(m, "_post_json", lambda url, body, key, to: sent.append((url, body)) or {"prompt": "P"})
+    tok = m.LlamaCppServerTokenizer("http://h", "mod", template_kwargs=True)
+    assert tok.apply_chat_template([{"role": "user", "content": "x"}], tokenize=False,
+                                   add_generation_prompt=True, enable_thinking=True) == "P"
+    assert sent[0][0] == "http://h/apply-template"
+    assert sent[0][1]["chat_template_kwargs"] == {"enable_thinking": True}

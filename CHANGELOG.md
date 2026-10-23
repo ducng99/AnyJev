@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Fix: `Tacit(engine="llamacpp")` no longer downloads a Hugging Face tokenizer.** It uses
+  `LlamaCppServerTokenizer` (the server's `/tokenize` and `/apply-template`; `enable_thinking` is
+  forwarded as `chat_template_kwargs`).  The `tokenizer=` argument does not apply to this engine.
 - **New: `LlamaCppServerBackend`** (`anyjev/backends/llamacpp_server.py`), a client of a running
   `llama-server` that scores the labels from the native `/completion` endpoint: one request per prompt
   with `n_predict=1` (the sampled token is discarded) and `n_probs` asked for the whole vocabulary, so

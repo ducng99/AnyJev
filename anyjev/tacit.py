@@ -257,18 +257,8 @@ class ServerEngine:
 
 
 class LlamaCppEngine:
-    """A running `llama-server`, over its native /completion endpoint rather than the OpenAI-shaped /v1
-    one: only the native reply carries token ids next to its log-probabilities. Prompts go as token ids, never as
-    strings -- the server tokenizes a string prompt with its own special tokens, which would add a BOS
-    the training prompt does not carry. One request carries a whole batch: an array of token-id arrays
-    becomes one task per prompt and every reply names its `index` (a single-prompt reply comes back as
-    one object, normalized here). `n_probs=None` asks for the whole vocabulary, so the scores are the
-    exact full-vocabulary log-softmax and a label cannot be missing; an integer caps the reply at the
-    top N tokens, and a label outside it raises `LabelTokenError` instead of counting as probability
-    zero. llama-server does not echo the stop word back (there is no include_stop_str_in_output), so
-    an escalated thought arrives without its `</think>` and `_close_thought` closes it, exactly as the
-    transformers engine's `stop_strings` already does. Every request names the model: llama-server
-    expects `model` in the body even on the native endpoint, and `from_pretrained` sends the repo."""
+    """A running `llama-server`, over its native /completion endpoint. Prompts go as token ids;
+    `n_probs=None` scores the whole vocabulary, an integer caps it at the top N."""
 
     def __init__(self, base_url: str, model: str, tok, api_key: Optional[str] = None,
                  timeout: float = 3600.0, n_probs: Optional[int] = None):
@@ -278,9 +268,10 @@ class LlamaCppEngine:
         self.api_key = api_key or os.environ.get("TACIT_API_KEY")
 
     def _ids(self, text: str) -> List[int]:
-        return self.tok(text, add_special_tokens=False).input_ids
+        return self.tok.encode(text, add_special_tokens=False)
 
     def _complete(self, prompts_ids: List[List[int]], **params) -> List[Dict[str, Any]]:
+        # token ids, not strings: a string prompt would get a BOS the training prompt lacks
         body = dict(model=self.model, prompt=prompts_ids, cache_prompt=True, **params)
         req = urllib.request.Request(self.base_url + "/completion", data=json.dumps(body).encode(),
                                      headers={"Content-Type": "application/json"})
@@ -304,7 +295,7 @@ class LlamaCppEngine:
                 raise RuntimeError("llama.cpp server: the reply carries no completion_probabilities "
                                    "for the first predicted token; n_probs must be positive") from None
             lp = {int(t["id"]): float(t["logprob"]) for t in top if t.get("logprob") is not None}
-            missing = [int(t) for t in ids if int(t) not in lp]
+            missing = [int(t) for t in ids if int(t) not in lp]      # outside the top n_probs
             if missing:
                 raise LabelTokenError(
                     "llama.cpp server: no log-probability for label token ids %s in its top %d "
@@ -318,6 +309,7 @@ class LlamaCppEngine:
 
     def reason_read(self, prompts: List[str], label_ids: List[List[int]], max_tokens: int,
                     sampling: Dict[str, Any]) -> List[Tuple[np.ndarray, int]]:
+        # llama-server drops the stop word, so _close_thought restores it
         choices = self._complete([self._ids(p) for p in prompts], n_predict=max_tokens,
                                  stop=["</think>"], **sampling)
         texts = [p + _close_thought(c["content"]) + "\n\nAnswer:" for p, c in zip(prompts, choices)]
@@ -390,10 +382,9 @@ class Tacit:
         """engine: "transformers" (default), "vllm" (vLLM in this process; `vllm_kwargs` go to
         `vllm.LLM`), "server" (a running `vllm serve` at `base_url`, its root or /v1 URL) or
         "llamacpp" (a running `llama-server` at `base_url`, its native /completion API; `n_probs=None`
-        scores the whole vocabulary; every request names the model after `repo`). `tokenizer`
-        names a repo (or local path) to load the tokenizer
-        from when the model repo ships none — a GGUF repo carries its vocabulary inside the .gguf
-        file, so point `tokenizer` at the original model repo. The other keyword arguments go to
+        scores the whole vocabulary; tokenizing and the chat template use the server's own endpoints,
+        so `tokenizer` is ignored). `tokenizer` names a repo (or local path) for a Hugging Face
+        tokenizer, when the model repo ships none. The other keyword arguments go to
         `Tacit` (adaptive, tau, max_cot_share, cot_window, ...)."""
         if engine == "server":
             from transformers import AutoTokenizer
@@ -402,13 +393,15 @@ class Tacit:
             tok = AutoTokenizer.from_pretrained(tokenizer or repo)
             kwargs.setdefault("batch_size", 1 << 30)
             return cls(ServerEngine(base_url, served_model or repo, tok, api_key, logprobs), tok, **kwargs)
+
         if engine == "llamacpp":
             if not base_url:
                 raise ValueError('engine="llamacpp" needs base_url, e.g. "http://127.0.0.1:8080"')
-            from transformers import AutoTokenizer
-
-            tok = AutoTokenizer.from_pretrained(tokenizer or repo)
+            api_key = api_key or os.environ.get("TACIT_API_KEY")
+            from anyjev.backends.llamacpp_server import LlamaCppServerTokenizer
+            tok = LlamaCppServerTokenizer(base_url.rstrip("/"), repo, api_key, template_kwargs=True)
             return cls(LlamaCppEngine(base_url, repo, tok, api_key, n_probs=n_probs), tok, **kwargs)
+
         if engine == "vllm":
             # the engine runs in this process unless the caller says otherwise: a spawned engine
             # re-imports the calling script, which breaks scripts without a __main__ guard and notebooks
@@ -422,8 +415,10 @@ class Tacit:
             tok = llm.get_tokenizer()
             kwargs.setdefault("batch_size", 1 << 30)       # vLLM batches internally
             return cls(VLLMEngine(llm, tok, logprobs), tok, **kwargs)
+
         if engine != "transformers":
             raise ValueError('engine must be "transformers", "vllm", "server" or "llamacpp"')
+
         import torch
         import transformers
         from transformers import AutoModelForCausalLM, AutoTokenizer
